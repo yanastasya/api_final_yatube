@@ -1,15 +1,17 @@
 from urllib import request
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
+
 
 
 from posts.models import Post, User, Group, Comment, Follow
 from .serializers import GroupSerializer, PostSerializer
 from .serializers import UserSerializer, CommentSerializer, FollowSerializer
 from .permissions import IsAuthorOrReadOnly
+
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -81,9 +83,9 @@ class FollowViewSet(viewsets.ModelViewSet):
     получать ответ с кодом 401 Unauthorized.
     """
     serializer_class = FollowSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    permission_classes = (IsAuthenticated,)
     filter_backends = (filters.SearchFilter,)
-    search_fields = ('following__username')
+    search_fields = ('following__username',)
     
     def get_queryset(self):
         """Выбор всех подписок пользователя, сделавшего запрос."""
