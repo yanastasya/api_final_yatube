@@ -1,23 +1,100 @@
 from rest_framework import serializers
-from rest_framework.relations import SlugRelatedField
+
+from posts.models import Post, User, Group, Comment, Follow
+import base64  # Модуль с функциями кодирования и декодирования base64
+
+from django.core.files.base import ContentFile
 
 
-from posts.models import Comment, Post
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        # Если полученный объект строка, и эта строка 
+        # начинается с 'data:image'...
+        if isinstance(data, str) and data.startswith('data:image'):
+            # ...начинаем декодировать изображение из base64.
+            # Сначала нужно разделить строку на части.
+            format, imgstr = data.split(';base64,')  
+            # И извлечь расширение файла.
+            ext = format.split('/')[-1]  
+            # Затем декодировать сами данные и поместить результат в файл,
+            # которому дать название по шаблону.
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
 
+        return super().to_internal_value(data)
 
 class PostSerializer(serializers.ModelSerializer):
-    author = SlugRelatedField(slug_field='username', read_only=True)
+    """Сериализатор для модели Post."""
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+    image = Base64ImageField(required=False, allow_null=True)
 
     class Meta:
-        fields = '__all__'
+        fields = ('id', 'text', 'author', 'image', 'pub_date', 'group')
+        read_only_fields = ('author',)
         model = Post
 
 
-class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(
-        read_only=True, slug_field='username'
+class UserSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели User."""
+    posts = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field='text'
     )
 
     class Meta:
-        fields = '__all__'
+        model = User
+        fields = ('id', 'username', 'first_name', 'last_name', 'posts', 'following')
+        read_only_fields = ('posts',)
+        ref_name = 'ReadOnlyUsers'
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Group."""
+    class Meta:
+        fields = ('id', 'title', 'slug', 'description')
+        model = Group
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Comment."""
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+
+    class Meta:
+        fields = ('id', 'author', 'text', 'created', 'post')
+        read_only_fields = ('author', 'post')
         model = Comment
+
+
+class FollowSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Follow."""
+    following = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+    user = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+
+    class Meta:
+        fields = ('id', 'user', 'following')        
+        model = Follow
+
+    def validate(self, data):
+        """Автор не может подписываться сам на себя."""
+
+        if self.context['request'].user == data['following']:
+            raise serializers.ValidationError(
+                'Попытка подписаться на самого себя, это не допустимо.'
+            )
+
+        return data    
+        
+
+
