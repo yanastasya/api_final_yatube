@@ -1,4 +1,3 @@
-from operator import contains
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -24,7 +23,7 @@ class Post(models.Model):
     group = models.ForeignKey(
         Group, on_delete=models.CASCADE,
         related_name="posts", blank=True, null=True
-    )        
+    )
 
     def __str__(self):
         return self.text
@@ -54,8 +53,12 @@ class Follow(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='following',
-        verbose_name='Автор, на которого подписываются',        
+        verbose_name='Автор, на которого подписываются',
     )
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=('user', 'following'), name='unique_follow')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'following'), name='unique_follow'
+            )
+        ]

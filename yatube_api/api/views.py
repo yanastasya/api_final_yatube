@@ -1,11 +1,9 @@
-from urllib import request
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import filters
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-
-
 
 from posts.models import Post, User, Group, Comment, Follow
 from .serializers import GroupSerializer, PostSerializer
@@ -13,16 +11,15 @@ from .serializers import UserSerializer, CommentSerializer, FollowSerializer
 from .permissions import IsAuthorOrReadOnly
 
 
-
 class PostViewSet(viewsets.ModelViewSet):
     """Получение списка всех постов (GET запрос к api/v1/posts).
+    При указании параметров limit и offset выдача работает с пагинацией.
     Создание нового поста (POST запрос к api/v1/posts).
     Получение, редакция и удаление поста по id
     (GET, PUT, PATH, DELETE запросы к api/v1/posts/post_id).
-    Пагинация.
+    Анонимные запросы запрещены. Изменение чужого контента запрещено.
     """
     queryset = Post.objects.all()
-    
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
     pagination_class = LimitOffsetPagination
@@ -53,6 +50,8 @@ class CommentViewSet(viewsets.ModelViewSet):
     Получаем список всех комментариев поста с id=post_id или создаём новый.
     api/v1/posts/{post_id}/comments/{comment_id}/ (GET, PUT, PATCH, DELETE):
     получаем, редактируем или удаляем комментарий по id у поста с id=post_id.
+    POST запросы только для авторизованных пользователей,
+    изменение чужого контента запрещено.
     """
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
@@ -77,27 +76,24 @@ class FollowViewSet(viewsets.ModelViewSet):
     Возможен поиск по подпискам по параметру search.
     POST — подписать пользователя, сделавшего запрос на пользователя,
     переданного в теле запроса. При попытке подписаться на самого себя,
-    пользователь должен получить информативное сообщение об ошибке.
-    Проверка должна осуществляться на уровне API.
-    Анонимный пользователь на запросы к этому эндпоинту должен
-    получать ответ с кодом 401 Unauthorized.
+    пользователь получит информативное сообщение об ошибке.
+    Анонимный пользователь на запросы к этому эндпоинту получает
+    ответ с кодом 401 Unauthorized.
     """
     serializer_class = FollowSerializer
     permission_classes = (IsAuthenticated,)
     filter_backends = (filters.SearchFilter,)
     search_fields = ('following__username',)
-    
+
     def get_queryset(self):
         """Выбор всех подписок пользователя, сделавшего запрос."""
-        
         new_queryset = Follow.objects.filter(user=self.request.user)
 
         return new_queryset
 
     def perform_create(self, serializer):
-        """Подписать пользователя, сделавшего запрос(user = self.request.user) на пользователя,
-    переданного в теле запроса(following)."""        
-        
+        """Создание новой подписки."""
+
         serializer.save(
             user=self.request.user,
             following=User.objects.get(username=self.request.data['following'])
