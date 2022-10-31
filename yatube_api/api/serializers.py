@@ -4,6 +4,7 @@ from posts.models import Post, User, Group, Comment, Follow
 import base64  # Модуль с функциями кодирования и декодирования base64
 
 from django.core.files.base import ContentFile
+from rest_framework.validators import UniqueTogetherValidator
 
 
 class Base64ImageField(serializers.ImageField):
@@ -74,28 +75,30 @@ class CommentSerializer(serializers.ModelSerializer):
 class FollowSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Follow."""
     following = serializers.SlugRelatedField(
-        queryset=User.objects.all(),
-        slug_field='username',        
+        queryset=User.objects.all(),        
+        slug_field='username',
     )
-    user = serializers.SlugRelatedField(
+    user = serializers.SlugRelatedField(        
         slug_field='username',
         read_only=True,
-        default=serializers.CurrentUserDefault()
+        default=serializers.CurrentUserDefault(),
     )
 
     class Meta:
+        unique_together = ('user', 'following'),
         fields = ('id', 'user', 'following')
         model = Follow
+        
 
-    def validate(self, data):
+    def validate_following(self, value):
         """Автор не может подписываться сам на себя."""
 
-        if self.context['request'].user == data['following']:
+        if self.context['request'].user == value:
             raise serializers.ValidationError(
                 'Попытка подписаться на самого себя, это не допустимо.'
             )
 
-        return data    
+        return value    
         
 
 
