@@ -84,10 +84,15 @@ class FollowSerializer(serializers.ModelSerializer):
         default=serializers.CurrentUserDefault(),
     )
 
-    class Meta:
-        unique_together = ('user', 'following'),
+    class Meta:        
         fields = ('id', 'user', 'following')
         model = Follow
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Follow.objects.all(),
+                fields=('user', 'following')
+            )
+        ]
         
 
     def validate_following(self, value):
