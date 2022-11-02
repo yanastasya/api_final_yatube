@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework import mixins
 from rest_framework import filters
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -70,7 +71,11 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user, post=post)
 
 
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet
+):
     """Эндпоинт api/v1/follow/ и два метода: GET и POST.
     GET — возвращает все подписки пользователя, сделавшего запрос.
     Возможен поиск по подпискам по параметру search.
@@ -96,5 +101,7 @@ class FollowViewSet(viewsets.ModelViewSet):
 
         serializer.save(
             user=self.request.user,
-            following=User.objects.get(username=self.request.data['following'])
+            following=get_object_or_404(
+                User, username=self.request.data['following']
+            )
         )
